@@ -1,11 +1,11 @@
-# Echoes of Tomorrow - Light Arm Firmware
+# Echoes of Tomorrow - Serial routing Firmware
 
-This repository contains the embedded firmware for the microcontrollers that operate the LED light arm in the **Echoes of Tomorrow** GLOW 2025 project.
+This repository contains the embedded firmware for the microcontroller that operate as a serial router in the **Echoes of Tomorrow** GLOW 2025 project.
 
 ## Overview
 - Written in C++
-- Compiled and uploaded to microcontrollers (e.g., Arduino or compatible boards)
-- Receives audio-reactive signals from the central unit
+- Compiled and uploaded to microcontrollers (Teensy 4.1)
+- Connects the Mac mini to the microcontrollers via serial
 
 ## Project Structure
 ```
@@ -17,14 +17,14 @@ arm/
 
 ## Setup Instructions
 1. Open `firmware/arm.ino` in the Arduino IDE
-2. Select the correct board (e.g., Arduino Nano / Teensy 4.0)
+2. Select the correct board (Teensy 4.1)
 3. Upload to the connected board
 
 ## Testing
 Diagnostic sketches are in `tests/`
 
 ## Documentation
-See `documentation/` or the [Wiki](https://github.com/GLOW-Delta-2025/central-unit/wiki) for details on architecture, function descriptions, and setup.
+See `documentation/` or the [Wiki](https://github.com/GLOW-Delta-2025/master/wiki) for details on architecture, function descriptions, and setup.
 
 ## Branches
 - `main`: Production-ready code

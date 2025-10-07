@@ -1,6 +1,6 @@
-# Echoes of Tomorrow - Light Arms Firmware
+# Echoes of Tomorrow - Light Arm Firmware
 
-This repository contains the embedded firmware for the microcontrollers that operate the LED light arms in the **Echoes of Tomorrow** GLOW 2025 project.
+This repository contains the embedded firmware for the microcontrollers that operate the LED light arm in the **Echoes of Tomorrow** GLOW 2025 project.
 
 ## Overview
 - Written in C++
@@ -9,14 +9,14 @@ This repository contains the embedded firmware for the microcontrollers that ope
 
 ## Project Structure
 ```
-arms/
+arm/
 ├── firmware/           # C++ firmware source
 ├── tests/              # Diagnostic sketches/tests
 └── documentation/      # Schematics and setup guides
 ```
 
 ## Setup Instructions
-1. Open `firmware/arms.ino` in the Arduino IDE
+1. Open `firmware/arm.ino` in the Arduino IDE
 2. Select the correct board (e.g., Arduino Nano / Teensy 4.0)
 3. Upload to the connected board
 

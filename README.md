@@ -1,122 +1,48 @@
-# Echoes of Tomorrow - Light Arms Firmware
+# Serial Router Playground
 
-This repository contains the embedded firmware for the microcontrollers that operate the LED light arms in the **Echoes of Tomorrow** GLOW 2025 project.
+Firmware, simulation scaffolding, and documentation for routing the GLOW 2025 choreography protocol between the Mac controller, a Teensy 4.1 router, and ESP32-based device endpoints.
 
-## Overview
-- Written in C++
-- Compiled and uploaded to microcontrollers (e.g., Arduino or compatible boards)
-- Receives audio-reactive signals from the central unit
+## Layout
 
-## Project Structure
-```
-arms/
-├── firmware/           # C++ firmware source
-├── tests/              # Diagnostic sketches/tests
-└── documentation/      # Schematics and setup guides
-```
+- `states_diagram/` – Markdown spec for the protocol plus a Python/Graphviz generator that emits DOT/SVG diagrams.
+- `actual_code/` – Arduino sketches for Teensy and ESP firmware (`router_protocol_bridge/`) and the original one-bit probe prototypes.
+- `host_sim/` – C++ harness that simulates the MAC⇄Teensy⇄ESP exchange using mock serial ports.
 
-## Setup Instructions
-1. Open `firmware/arms.ino` in the Arduino IDE
-2. Select the correct board (e.g., Arduino Nano / Teensy 4.0)
-3. Upload to the connected board
-
-## Testing
-Diagnostic sketches are in `tests/`
-
-## Documentation
-See `documentation/` or the [Wiki](https://github.com/GLOW-Delta-2025/central-unit/wiki) for details on architecture, function descriptions, and setup.
-
-## Teensy ↔ ESP32 Connector Probe
-
-This reference setup pairs a Teensy 4.1 with an ESP32-WROVER over a UART link so you can validate wiring and baud configuration before dropping the code into the main firmware.
-
-### Hardware
-
-- Teensy 4.1 (Arduino Teensy core installed)
-- ESP32-WROVER (or similar ESP32 module with exposed GPIO25/26)
-- Jumper wires for TX/RX crossover and common ground
-- Optional: shared 3.3 V supply (or power each board separately via USB—**always** share ground)
-
-#### Wiring
-
-| Teensy 4.1 | ESP32 |
-| --- | --- |
-| Pin 1 (TX1) | GPIO26 (`ESP_RX_PIN`) |
-| Pin 0 (RX1) | GPIO25 (`ESP_TX_PIN`) |
-| GND | GND |
-| 3.3 V (optional) | 3.3 V |
-
-> ⚠️ When both boards are USB-powered, leave 3.3 V disconnected and only share ground. Avoid tying USB 5 V rails together.
-
-### Software Setup
-
-#### Arduino IDE board packages
-
-1. **Install Teensy support**
-	- IDE 1.8.x: install *Teensyduino* from PJRC, then select “Teensy 4.1”.
-	- IDE 2.x: open **Boards Manager**, search “Teensy”, and install the “Teensy Boards” package. (PJRC download link available on their site.)
-2. **Install ESP32 support**
-	- Boards Manager URL: `https://espressif.github.io/arduino-esp32/package_esp32_index.json`
-	- Search “ESP32” in Boards Manager, install the latest 3.x package, then select “ESP32 Wrover Module”.
-
-#### Libraries
-
-Both sketches rely only on the Arduino cores—no additional libraries required.
-
-### Flashing the Sketches
-
-#### Teensy 4.1 (`connector_probe.ino`)
-
-1. Open `connector_probe.ino` in the Arduino IDE.
-2. Select **Tools → Board → Teensy 4.1**.
-3. (Optional) Set **USB Type** to “Serial” for host logging.
-4. Build and upload. The Teensy Loader should appear; tap the reset button if it doesn’t auto-program.
-5. Open **Serial Monitor** at **115200 baud** to watch TX/RX logs.
-
-#### ESP32 (`esp_connector`)
-
-1. Open the `esp_connector` sketch (rename to `esp_connector.ino` or place it in a same-named folder if prompted).
-2. Select **Tools → Board → ESP32 Wrover Module**.
-3. Choose the correct serial port. If upload fails with “wrong boot mode,” hold **BOOT**, tap **EN/RST**, release **BOOT** as the IDE shows “Connecting…”.
-4. Upload, then open **Serial Monitor** at **115200 baud** to view the startup banner and echoed bytes.
-
-### Bring-up Checklist
-
-1. Flash both boards with the sketches above.
-2. Wire the UART crossover (Teensy TX1 ↔ ESP GPIO26, Teensy RX1 ↔ ESP GPIO25) and common ground.
-3. Power both boards and open their serial monitors at 115200 baud.
-4. Verify:
-	- Teensy prints `TX1 sent bit:` every 500 ms and logs incoming bytes (`ESP`, `'?'` heartbeats, echoed bits).
-	- ESP32 logs every byte it sees and echoes the character back.
-
-If the Teensy only logs outbound bits, re-check wiring and confirm the ESP32 console shows the startup banner. GPIO16/17 on WROVER modules can emit boot chatter; using GPIO26/25 avoids that noise.
-
-**Expected Serial Sample**
+## Repository Structure
 
 ```
-TX1 sent bit: 1
-RX1 received byte: '1' (0x31)
-TX1 sent bit: 0
-RX1 received byte: '0' (0x30)
-RX1 received byte: '?' (0x3F)
+serial-router/
+├─ README.md                         # Project overview and quick-start workflow
+├─ actual_code/
+│  ├─ one_bit_connector_tx_rx/       # Original Teensy↔ESP link probes and supporting notes
+│  └─ router_protocol_bridge/        # Production Teensy router + ESP responder sketches
+├─ host_sim/
+│  ├─ main.cpp                       # Virtual MAC/Router/ESP harness exercising the protocol
+│  ├─ base_connector.*               # Shared helpers for building/parsing protocol frames
+│  └─ mock_serial.hpp                # In-memory serial port used by the simulator
+└─ states_diagram/
+   ├─ teensy_esp_router_states.md    # Authoritative protocol specification (commands, states)
+   ├─ diagram_generator.py           # Markdown-to-DOT/SVG renderer for the spec
+   └─ output/                        # Generated Graphviz artifacts (DOT/SVG)
 ```
 
-### Troubleshooting
+## Quick Start
 
-- **No ESP output**: Ensure the Arduino IDE selected the correct board/port and that the ESP32 powers up (look for the reset banner over USB).
-- **Upload fails**: Enter download mode manually (hold BOOT, tap EN) or disconnect Teensy TX/RX during flashing.
-- **Garbled characters**: Confirm both sketches use 115200 baud and that you’re not mixing 5 V logic (both boards run at 3.3 V).
-- **Link silence**: The ESP32 sends a `'?'` heartbeat every 2 seconds; if the Teensy stops seeing it, inspect cabling or power.
+1. Generate the protocol diagram: `cd states_diagram && python3 diagram_generator.py`
+2. Build the host simulator: `cd host_sim && g++ -std=c++17 -Wall -Wextra -pedantic main.cpp base_connector.cpp -o host_sim_demo`
+3. Flash firmware:
+   - Teensy 4.1: open `actual_code/router_protocol_bridge/teensy_router.ino` in the Arduino IDE and upload with FQBN `teensy:avr:teensy41`.
+   - ESP32: open `actual_code/router_protocol_bridge/esp_router.ino`, select the appropriate ESP32 board, and upload (pins GPIO26/25 map to Teensy RX1/TX1).
 
-Adjust `ESP_RX_PIN`/`ESP_TX_PIN` in the ESP32 sketch if you rewire to alternate pins.
+## Manual Testing
 
-## Branches
-- `main`: Production-ready code
-- `develop`: Active development
-- `feature/<name>`, `bugfix/<name>`, `hotfix/<name>`: Use Git Flow
+- Open the Teensy USB Serial monitor at 115200 baud and send protocol frames (for example `!!ARM1:REQUEST:MAKE_STAR{speed=3,color=red,brightness=80,size=10}##`).
+- Watch the Teensy console for `[ROUTER]` debug lines and the echoed frames that return to the MAC side.
+- Optional: connect to the ESP’s USB serial port to view its `[ESP]` logs.
 
-## Commit Convention
-```text
-<type>: <short description>
-```
-Example: `fix: LED flickering on pin 6`
+## Contributing Checklist
+
+- Keep command/state names identical to the specification tables (including underscores and capitalization).
+- When adding new protocol elements, update `states_diagram/teensy_esp_router_states.md` and regenerate the diagram.
+- Extend the host simulator alongside firmware changes so desktop tests cover new flows.
+- Run `git status` and review the generated artifacts before committing.

@@ -97,7 +97,6 @@ void loop() {
   // Lees van Mac
   if (mac.available()) {
     char ch = mac.read();
-    mac.write(ch); // echo zodat je ziet wat je typt
     macBuffer += ch;
 
     if (macBuffer.find("!!") != std::string::npos &&

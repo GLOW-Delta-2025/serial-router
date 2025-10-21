@@ -1,11 +1,11 @@
 #include <Arduino.h>
 #include <string>
 
-// Forward declarations
+// ---------- Forward declarations ----------
 void routeFromMac(const std::string &msg);
-void routeFromArm(HardwareSerial &armPort);
+void routeFromArm(HardwareSerial &armPort, int armNumber);
 
-// Define serial ports
+// ---------- Define serial ports ----------
 #define mac Serial
 #define arm1 Serial1
 #define arm2 Serial2
@@ -27,73 +27,93 @@ void SetupSerialRouting() {
 
 // ---------- Send Helpers ----------
 void sendToArm(int armNumber, const std::string &message) {
-  std::string routedMsg = "!!MASTER:" + message.substr(2);
   switch (armNumber) {
-    case 1: arm1.println(routedMsg.c_str()); break;
-    case 2: arm2.println(routedMsg.c_str()); break;
-    case 3: arm3.println(routedMsg.c_str()); break;
-    case 4: arm4.println(routedMsg.c_str()); break;
-    case 5: arm5.println(routedMsg.c_str()); break;
+    case 1: arm1.print(message.c_str()); break;
+    case 2: arm2.print(message.c_str()); break;
+    case 3: arm3.print(message.c_str()); break;
+    case 4: arm4.print(message.c_str()); break;
+    case 5: arm5.print(message.c_str()); break;
     default: break;
   }
 }
 
 void sendToCenterpiece(const std::string &message) {
-  std::string routedMsg = "!!MASTER:" + message.substr(2);
-  Centerpiece.println(routedMsg.c_str());
+  Centerpiece.print(message.c_str());
 }
 
 // ---------- Routing Logic ----------
 void routeFromMac(const std::string &msg) {
-  if (msg.rfind("!![ARM1]", 0) == 0) sendToArm(1, msg);
-  else if (msg.rfind("!![ARM2]", 0) == 0) sendToArm(2, msg);
-  else if (msg.rfind("!![ARM3]", 0) == 0) sendToArm(3, msg);
-  else if (msg.rfind("!![ARM4]", 0) == 0) sendToArm(4, msg);
-  else if (msg.rfind("!![ARM5]", 0) == 0) sendToArm(5, msg);
-  else if (msg.rfind("!![CENTERPIECE]", 0) == 0) sendToCenterpiece(msg);
+  if (msg.rfind("!!ARM1", 0) == 0) { sendToArm(1, msg); mac.print("[→ ARM1] "); mac.println(msg.c_str()); }
+  else if (msg.rfind("!!ARM2", 0) == 0) { sendToArm(2, msg); mac.print("[→ ARM2] "); mac.println(msg.c_str()); }
+  else if (msg.rfind("!!ARM3", 0) == 0) { sendToArm(3, msg); mac.print("[→ ARM3] "); mac.println(msg.c_str()); }
+  else if (msg.rfind("!!ARM4", 0) == 0) { sendToArm(4, msg); mac.print("[→ ARM4] "); mac.println(msg.c_str()); }
+  else if (msg.rfind("!!ARM5", 0) == 0) { sendToArm(5, msg); mac.print("[→ ARM5] "); mac.println(msg.c_str()); }
+  else if (msg.rfind("!!CENTERPIECE", 0) == 0) { sendToCenterpiece(msg); mac.print("[→ CENTERPIECE] "); mac.println(msg.c_str()); }
 }
 
-void routeFromArm(HardwareSerial &armPort) {
-  if (armPort.available()) {
-    std::string response;
-    char ch;
-    while (armPort.available()) {
-      ch = armPort.read();
-      response += ch;
-      if (response.size() >= 2 && response.substr(response.size() - 2) == "##") break; // message delimiter
+
+// ---------- Routing from Arms ----------
+void routeFromArm(HardwareSerial &armPort, int armNumber) {
+  static std::string armBuffers[7];
+  std::string &buffer = armBuffers[armNumber];
+
+  while (armPort.available()) {
+    char ch = armPort.read();
+    buffer += ch;
+
+    // Controleer op volledig bericht
+    if (buffer.find("!!") != std::string::npos &&
+        buffer.size() >= 2 &&
+        buffer.substr(buffer.size() - 2) == "##") {
+
+      // Laat zien van welke arm het komt
+      mac.print("[← ARM");
+      mac.print(armNumber);
+      mac.print("] ");
+      mac.println(buffer.c_str());
+
+      // Stuur het pure command terug naar de Mac
+      buffer.clear(); // ✅ clear buffer for next message
+      armPort.flush(); // ✅ empty any leftover bytes
     }
-    if (!response.empty()) mac.println(response.c_str());
   }
 }
 
 // ---------- Main ----------
 void setup() {
   SetupSerialRouting();
+
+  // Wacht tot de USB-serial actief is
+  while (!mac) {
+    ; // doe niets tot de verbinding klaar is
+  }
+
+  mac.println("Serial router ready. Type !![ARMx]COMMAND## en druk op Enter.");
 }
 
 void loop() {
-  // Check Mac input
-  if (mac.available()) {
-    std::string msg;
-    char ch;
-    while (mac.available()) {
-      ch = mac.read();
-      msg += ch;
-      if (msg.size() >= 2 && msg.substr(msg.size() - 2) == "##") break; // message delimiter
-    }
+  static std::string macBuffer;
 
-    if (!msg.empty()) {
-      mac.println("Received full message:");
-      mac.println(msg.c_str());   // Optional: print once per full message
-      routeFromMac(msg);
+  // Lees van Mac
+  if (mac.available()) {
+    char ch = mac.read();
+    mac.write(ch); // echo zodat je ziet wat je typt
+    macBuffer += ch;
+
+    if (macBuffer.find("!!") != std::string::npos &&
+        macBuffer.size() >= 2 &&
+        macBuffer.substr(macBuffer.size() - 2) == "##") {
+
+      routeFromMac(macBuffer);
+      macBuffer.clear();
     }
   }
 
-  // Check all arm responses
-  routeFromArm(arm1);
-  routeFromArm(arm2);
-  routeFromArm(arm3);
-  routeFromArm(arm4);
-  routeFromArm(arm5);
-  routeFromArm(Centerpiece);
+  // Lees van armen en centerpiece
+  routeFromArm(arm1, 1);
+  routeFromArm(arm2, 2);
+  routeFromArm(arm3, 3);
+  routeFromArm(arm4, 4);
+  routeFromArm(arm5, 5);
+  routeFromArm(Centerpiece, 6);
 }

@@ -210,8 +210,9 @@ void routeFromPort(HardwareSerial &port, int sourceId) {
           mac.println(framed);
 
           // Forward to destination
-          if (out.msgKind == "REQUEST") {}
-           deliverByDestination(toHeader, framed);
+          if (out.msgKind == "REQUEST") {
+            deliverByDestination(toHeader, framed);
+          }
         }
       }
 

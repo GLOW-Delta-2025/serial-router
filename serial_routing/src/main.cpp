@@ -27,7 +27,7 @@ void SetupSerialRouting() {
 
 // ---------- Send Helpers ----------
 void sendToArm(int armNumber, const std::string &message) {
-  std::string routedMsg = "!!MASTER:[ARM" + std::to_string(armNumber) + "]:" + message.substr(2);
+  std::string routedMsg = "!!MASTER:" + message.substr(2);
   switch (armNumber) {
     case 1: arm1.println(routedMsg.c_str()); break;
     case 2: arm2.println(routedMsg.c_str()); break;
@@ -39,7 +39,7 @@ void sendToArm(int armNumber, const std::string &message) {
 }
 
 void sendToCenterpiece(const std::string &message) {
-  std::string routedMsg = "!!MASTER:[CENTERPIECE]:" + message.substr(2);
+  std::string routedMsg = "!!MASTER:" + message.substr(2);
   Centerpiece.println(routedMsg.c_str());
 }
 
@@ -81,7 +81,12 @@ void loop() {
       msg += ch;
       if (msg.size() >= 2 && msg.substr(msg.size() - 2) == "##") break; // message delimiter
     }
-    if (!msg.empty()) routeFromMac(msg);
+
+    if (!msg.empty()) {
+      mac.println("Received full message:");
+      mac.println(msg.c_str());   // Optional: print once per full message
+      routeFromMac(msg);
+    }
   }
 
   // Check all arm responses
@@ -91,5 +96,4 @@ void loop() {
   routeFromArm(arm4);
   routeFromArm(arm5);
   routeFromArm(Centerpiece);
-  delay(1000); // Small delay to avoid overwhelming the loop
 }

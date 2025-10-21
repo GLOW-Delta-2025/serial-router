@@ -37,8 +37,8 @@ def read_responses():
 # -------- MAIN LOOP --------
 try:
     while True:
-        # Example: send a request to ARM3
-        send_command("!![ARM3]:REQUEST:MAKE_STAR{120,RED,90,6}##")
+        # Example: send a request to ARM1
+        send_command("!![ARM1]:REQUEST:MAKE_STAR{120,RED,90,6}##")
         time.sleep(1)
 
         read_responses()

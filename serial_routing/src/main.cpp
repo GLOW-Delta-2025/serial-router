@@ -9,11 +9,11 @@ void routeFromPort(HardwareSerial &port, int sourceId);
 
 // ---------- Define serial ports ----------
 #define mac Serial
-#define arm1 Serial6
-#define arm2 Serial2
-#define arm3 Serial3
-#define arm4 Serial4
-#define arm5 Serial5
+#define arm1 Serial2
+#define arm2 Serial3
+#define arm3 Serial4
+#define arm4 Serial5
+#define arm5 Serial6
 #define Centerpiece Serial1
 
 // Numeric IDs: 0=MASTER (Mac), 1..5=ARM1..ARM5, 6=CENTERPIECE

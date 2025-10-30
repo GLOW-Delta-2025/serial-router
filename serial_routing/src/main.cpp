@@ -9,30 +9,33 @@ void routeFromPort(HardwareSerial &port, int sourceId);
 
 // ---------- Define serial ports ----------
 #define mac Serial
-#define arm1 Serial2
-#define arm2 Serial3
-#define arm3 Serial4
-#define arm4 Serial5
-#define arm5 Serial6
-#define Centerpiece Serial1
+#define arm1 Serial1
+#define arm2 Serial2
+#define arm3 Serial3
+#define arm4 Serial4
+#define arm5 Serial5
+#define Centerpiece Serial6
+#define top Serial7
 
 // Numeric IDs: 0=MASTER (Mac), 1..5=ARM1..ARM5, 6=CENTERPIECE
 static inline String sourceLabel(int id) {
   if (id == 0) return "MASTER";
   if (id >= 1 && id <= 5) return String("ARM") + String(id);
-  if (id == 6) return "CENTERPIECE";
+  if (id == 6) return "CENTER";
+  if (id == 7) return "TOP";
   return "UNKNOWN";
 }
 
 // ---------- Setup ----------
 void SetupSerialRouting() {
-  mac.begin(9600);
-  arm1.begin(9600);
-  arm2.begin(9600);
-  arm3.begin(9600);
-  arm4.begin(9600);
-  arm5.begin(9600);
-  Centerpiece.begin(9600);
+  mac.begin(115200);
+  arm1.begin(115200, SERIAL_8N1);
+  arm2.begin(115200, SERIAL_8N1);
+  arm3.begin(115200, SERIAL_8N1);
+  arm4.begin(115200, SERIAL_8N1);
+  arm5.begin(115200, SERIAL_8N1);
+  Centerpiece.begin(115200, SERIAL_8N1);
+  top.begin(115200, SERIAL_8N1);
 }
 
 // ---------- Send Helpers ----------
@@ -50,6 +53,7 @@ static inline void sendToArm(int armNumber, const String &message) {
 
 static inline void sendToCenterpiece(const String &message) { Centerpiece.print(message); }
 static inline void sendToMac(const String &message) { mac.print(message); }
+static inline void sendToTop(const String &message) { top.print(message); }
 
 // ---------- CmdLib helpers ----------
 static bool headersHas(const Command &cmd, const String &needle) {
@@ -75,7 +79,7 @@ static String pickDestinationHeader(const Command &cmd, const String &exclude) {
   for (int i = 0; i < cmd.headerCount; ++i) {
     const String h = cmd.headers[i];
     if (h == exclude) continue;
-    if (h == "MASTER" || h == "CENTERPIECE" ||
+    if (h == "MASTER" || h == "CENTER" || h == "TOP" ||
         h == "ARM1" || h == "ARM2" || h == "ARM3" || h == "ARM4" || h == "ARM5")
       return h;
   }
@@ -134,9 +138,12 @@ static void deliverByDestination(const String &toHeader, const String &framed) {
   if (toHeader == "MASTER") {
     mac.print("[→ MASTER] "); mac.println(framed);
     sendToMac(framed);
-  } else if (toHeader == "CENTERPIECE") {
+  } else if (toHeader == "CENTER") {
     sendToCenterpiece(framed);
     mac.print("[→ CENTERPIECE] "); mac.println(framed);
+  } else if (toHeader == "TOP") {
+    sendToTop(framed);
+    mac.print("[→ TOP] "); mac.println(framed);
   } else if (toHeader.startsWith("ARM")) {
     int arm = 0;
     if (toHeader == "ARM1") arm = 1;
@@ -190,6 +197,8 @@ void routeFromPort(HardwareSerial &port, int sourceId) {
       int startIdx = buffer.lastIndexOf("!!");
       String candidate = (startIdx >= 0) ? buffer.substring(startIdx) : buffer;
 
+      Serial.println(candidate);
+
       Command in;
       String err;
       if (!parse(candidate, in, err)) {
@@ -229,8 +238,6 @@ void setup() {
 
   mac.println("Serial router ready (FROM:TO enforced).");
   mac.println("Examples to type from Mac:");
-  mac.println("  !!ARM1:REQUEST:MAKE_STAR{size=120,color=RED,100,6}##   -> !!MASTER:ARM1:...##");
-  mac.println("  !!CENTERPIECE:REQUEST:PING{}##                         -> !!MASTER:CENTERPIECE:...##");
 }
 
 void loop() {
@@ -241,8 +248,11 @@ void loop() {
     char ch = (char)mac.read();
     macBuffer += ch;
     if (macBuffer.endsWith("##")) {
+
       int startIdx = macBuffer.lastIndexOf("!!");
       String candidate = (startIdx >= 0) ? macBuffer.substring(startIdx) : macBuffer;
+      Serial.println(candidate);
+
       routeFromMac(candidate);
       macBuffer = "";
     }
@@ -255,4 +265,5 @@ void loop() {
   routeFromPort(arm4, 4);
   routeFromPort(arm5, 5);
   routeFromPort(Centerpiece, 6);
+  routeFromPort(top, 7);
 }

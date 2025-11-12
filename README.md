@@ -34,6 +34,7 @@ serial-router/
    └─ GLOW 2025_ Serial Router Firmware acceptance test & integration.pdf
    └─ GLOW 2025_ Serial Router Firmware Technical Advice.pdf 
    └─ GLOW hardware communication agreements.pdf
+   └─ GLOW 2025_ Serial Router Firmware Design.pdf
 ```
 
 

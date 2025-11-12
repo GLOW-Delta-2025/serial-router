@@ -2,6 +2,11 @@
 
 #include <algorithm>
 #include <sstream>
+#include <map>
+
+// Use the shared CommandLib for protocol building/parsing
+// Include path expected via compiler flag, e.g. -I../../CommandLibary/CommandLibary
+#include "CmdLib.h"
 
 namespace {
 	std::vector<std::string> split(const std::string& text, char delimiter) {
@@ -31,56 +36,52 @@ namespace {
 	}
 }
 
+// Helper: parse "k=v,flag,key=val" into a map to interop with cmdlib
+static std::map<std::string, std::string> parse_named_params(const std::string& params) {
+	std::map<std::string, std::string> out;
+	if (params.empty()) return out;
+	const auto tokens = split(params, ',');
+	for (const auto& t : tokens) {
+		auto eq = t.find('=');
+		if (eq == std::string::npos) {
+			// flag-only
+			out[ t ] = "";
+		} else {
+			out[ t.substr(0, eq) ] = t.substr(eq + 1);
+		}
+	}
+	return out;
+}
+
 std::string build_message(const MessageParts& parts) {
-	std::ostringstream oss;
-	oss << "!!";
-	if (!parts.addresses.empty()) {
-		oss << join(parts.addresses, ':') << ':';
+	cmdlib::Command cmd;
+	for (const auto& h : parts.addresses) cmd.headers.push_back(h);
+	cmd.msgKind = parts.type;
+	cmd.command = parts.command;
+	for (const auto& kv : parse_named_params(parts.parameters)) {
+		cmd.setNamed(kv.first, kv.second);
 	}
-	oss << parts.type << ':' << parts.command;
-	if (!parts.parameters.empty()) {
-		oss << '{' << parts.parameters << '}';
-	}
-	oss << "##";
-	return oss.str();
+	return cmd.toString();
 }
 
 bool parse_message(const std::string& text, MessageParts& out) {
-	if (text.size() < 6U || text.rfind("!!", 0) != 0 || text.substr(text.size() - 2U) != "##") {
+	cmdlib::Command cmd;
+	std::string error;
+	if (!cmdlib::parse(text, cmd, error)) {
 		return false;
 	}
-
-	const std::string core = text.substr(2U, text.size() - 4U); // strip !! and ##
-	std::string header = core;
-	std::string parameters;
-	const size_t brace_pos = core.find('{');
-	if (brace_pos != std::string::npos) {
-		const size_t closing = core.rfind('}');
-		if (closing == std::string::npos || closing < brace_pos) {
-			return false;
-		}
-		header = core.substr(0, brace_pos);
-		parameters = core.substr(brace_pos + 1U, closing - brace_pos - 1U);
-		if (closing + 1U != core.size()) {
-			return false; // trailing characters after closing brace
-		}
-	}
-
-	const auto tokens = split(header, ':');
-	if (tokens.size() < 2U) {
-		return false;
-	}
-
 	MessageParts result;
-	result.command = tokens.back();
-	result.type = tokens[tokens.size() - 2U];
-	result.parameters = parameters;
-	if (tokens.size() > 2U) {
-		result.addresses.assign(tokens.begin(), tokens.end() - 2U);
-	} else {
-		result.addresses.clear();
+	result.addresses = cmd.headers;
+	result.type = cmd.msgKind;
+	result.command = cmd.command;
+	// Rebuild parameter string from named map (order not guaranteed but content-equivalent)
+	std::vector<std::string> kvs;
+	kvs.reserve(cmd.namedParams.size());
+	for (const auto& kv : cmd.namedParams) {
+		if (kv.second.empty()) kvs.push_back(kv.first);
+		else kvs.push_back(kv.first + "=" + kv.second);
 	}
-
+	result.parameters = kvs.empty() ? std::string() : join(kvs, ',');
 	out = std::move(result);
 	return true;
 }

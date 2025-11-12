@@ -14,7 +14,7 @@ serial-router/
 │      ├─ teensy_router.ino              # Teensy 4.1 routing firmware (current reference)
 │      ├─ esp_router.ino                 # ESP32 debug/responder firmware
 │      └─ README.md                      # Firmware usage notes
-├─ host_sim/                             # C++ MAC↔Router↔ESP protocol simulator
+├─ host_sim/                             # C++ MAC↔Router↔ESP protocol simulator (uses CommandLibary/CmdLib.h)
 │  ├─ main.cpp
 │  ├─ base_connector.cpp|hpp
 │  ├─ mock_serial.hpp
@@ -55,9 +55,13 @@ Baud: 115200 (USB and UART). Maintain 3.3V logic; add level shifting if any peri
 
 ## Quick Start
 1. Build simulation (optional desktop test):
+   See `host_sim/README.md` for more. In short:
    ```bash
    cd host_sim
-   g++ -std=c++17 -Wall -Wextra -pedantic main.cpp base_connector.cpp -o host_sim_demo
+   # Build with CommandLibary include path
+   g++ -std=c++17 -Wall -Wextra -pedantic \
+     -I../../CommandLibary/CommandLibary \
+     main.cpp base_connector.cpp -o host_sim_demo
    ./host_sim_demo
    ```
 2. Flash Teensy firmware (Arduino IDE or PlatformIO) using board `Teensy 4.1`.

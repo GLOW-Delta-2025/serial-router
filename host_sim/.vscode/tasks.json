@@ -1,0 +1,46 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build host_sim with CommandLibary",
+			"type": "shell",
+			"command": "g++",
+			"args": [
+				"-std=c++17",
+				"-Wall",
+				"-Wextra",
+				"-pedantic",
+				"-I",
+				"../../CommandLibary/CommandLibary",
+				"main.cpp",
+				"base_connector.cpp",
+				"-o",
+				"host_sim_demo"
+			],
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build host_sim with CommandLibary",
+			"type": "shell",
+			"command": "g++",
+			"args": [
+				"-std=c++17",
+				"-Wall",
+				"-Wextra",
+				"-pedantic",
+				"-I../../CommandLibary/CommandLibary",
+				"main.cpp",
+				"base_connector.cpp",
+				"-o",
+				"host_sim_demo"
+			],
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "build"
+		}
+	]
+}

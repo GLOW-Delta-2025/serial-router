@@ -1,0 +1,101 @@
+@startuml teensy_router_states
+!theme aws-orange
+skinparam linetype ortho
+left to right direction
+
+' Legend
+legend left
+  |= Element |= Meaning |
+  |State|Router processing phase |
+  |[action]|Side effect / log / buffer op |
+endlegend
+
+' States (ordered top to bottom)
+state Idle
+state ReceivingMacFrame
+state ReceivingEspFrame
+state ParsingFrame
+state Routing
+state ForwardingToMac
+state ForwardingToEsp
+state AcknowledgingEsp
+state ErrorRecovery
+
+' Explicit ordering (hidden edges to enforce left-to-right layout)
+Idle -right[hidden]-> ReceivingMacFrame
+ReceivingMacFrame -right[hidden]-> ReceivingEspFrame
+ReceivingEspFrame -right[hidden]-> ParsingFrame
+ParsingFrame -right[hidden]-> Routing
+Routing -right[hidden]-> ForwardingToMac
+ForwardingToMac -right[hidden]-> ForwardingToEsp
+ForwardingToEsp -right[hidden]-> AcknowledgingEsp
+AcknowledgingEsp -right[hidden]-> ErrorRecovery
+
+[*] --> Idle
+
+' Idle transitions
+Idle --> ReceivingMacFrame : usb_byte_received / '!!' detected\n[start_timeout_timer (optional)]
+Idle --> ReceivingEspFrame : esp_byte_received / '!!' detected\n[start_timeout_timer (optional)]
+
+' Receiving frames (Mac)
+ReceivingMacFrame --> ReceivingMacFrame : usb_byte_received / append_byte
+ReceivingMacFrame --> ParsingFrame : frame_complete / append_byte
+ReceivingMacFrame --> ErrorRecovery : timeout_elapsed (optional) / clear_partial
+ReceivingMacFrame --> ErrorRecovery : buffer_overflow / clear_partial
+
+' Receiving frames (ESP)
+ReceivingEspFrame --> ReceivingEspFrame : esp_byte_received / append_byte
+ReceivingEspFrame --> ParsingFrame : frame_complete / append_byte
+ReceivingEspFrame --> ErrorRecovery : timeout_elapsed (optional) / clear_partial
+ReceivingEspFrame --> ErrorRecovery : buffer_overflow / clear_partial
+
+' Parsing
+ParsingFrame --> Routing : parse_success
+ParsingFrame --> ErrorRecovery : parse_failure / log_event
+
+' Routing decisions
+Routing --> ForwardingToEsp : destination_is_esp / build_outbound_frame
+Routing --> ForwardingToMac : destination_is_mac / build_outbound_frame
+Routing --> ErrorRecovery : buffer_overflow / clear_partial
+
+' Forwarding
+ForwardingToEsp --> Idle : forward_success
+ForwardingToEsp --> ErrorRecovery : buffer_overflow / log_event
+
+ForwardingToMac --> AcknowledgingEsp : forward_success & command_requires_ack & is_esp_inbound / send_ack
+ForwardingToMac --> Idle : forward_success
+ForwardingToMac --> ErrorRecovery : buffer_overflow / log_event
+
+' Acknowledging
+AcknowledgingEsp --> Idle : forward_success
+AcknowledgingEsp --> ErrorRecovery : buffer_overflow / log_event
+
+' Error recovery
+ErrorRecovery --> Idle : discard_until_sync / log_event(resync)
+
+' Notes for timing points
+note top of ReceivingMacFrame
+T1: sync detected (usb '!!')
+end note
+
+note top of ReceivingEspFrame
+T1: sync detected (esp '!!')
+end note
+
+note right of ParsingFrame
+T2→T3 parse latency
+end note
+
+note bottom of ForwardingToEsp
+T3→T4 routing/forward latency
+end note
+
+note bottom of AcknowledgingEsp
+T1→T5 round trip ack latency
+end note
+
+note right of AcknowledgingEsp
+Ack guard: command_requires_ack is true for {STAR_ARRIVED, CLIMAX_READY} when type==REQUEST; true for COMM_ERROR regardless of type. Acks are emitted only for ESP-originated messages after forwarding upstream.
+end note
+
+@enduml
